@@ -1,0 +1,39 @@
+services:
+  # === 1. Dịch vụ Java Spring Boot (mytour-java-app) ===
+  app:
+    build: .
+    image: mytour-java-app:latest
+    container_name: mytour_java_app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/mytour_db
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      TZ: Asia/Ho_Chi_Minh
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      JWT_SECRET: YourSecureMytourSecretKeyForSigningJWTs
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_started  # CHỈ CẦN DB CONTAINER ĐÃ KHỞI ĐỘNG
+    restart: on-failure
+
+  # === 2. Dịch vụ PostgreSQL Database ===
+  db:
+    image: postgres:12-alpine
+    container_name: mytour_postgres_db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: mytour_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    # ĐÃ XÓA PHẦN 'healthcheck' VÌ KHÔNG CẦN THIẾT KHI DÙNG service_started
+    restart: always
+
+volumes:
+  postgres_data:

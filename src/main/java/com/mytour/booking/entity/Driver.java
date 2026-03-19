@@ -21,5 +21,12 @@ public class Driver extends BaseEntity {
 
     private String name;
     private String phone;
+
+    @Column(name = "license_plate")
+    private String licensePlate;
+
+    @Column(name = "vehicle_info")
+    private String vehicleInfo;
+
     private String status; // available, busy
 }

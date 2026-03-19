@@ -5,7 +5,7 @@ services:
     image: mytour-java-app:latest
     container_name: mytour_java_app
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/mytour_db
       SPRING_DATASOURCE_USERNAME: user

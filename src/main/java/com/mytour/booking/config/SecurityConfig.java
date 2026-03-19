@@ -59,6 +59,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/uploads/images/**").permitAll()
                 .antMatchers("/api/v1/auth/**").permitAll()
                 .antMatchers("/api/v1/files/upload").permitAll()
+                .antMatchers("/ws/**").permitAll()
 
                 // Admin-only endpoints
                 .antMatchers("/api/v1/admin/**").hasAuthority("ADMIN")

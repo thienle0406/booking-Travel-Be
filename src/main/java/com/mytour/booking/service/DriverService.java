@@ -35,6 +35,8 @@ public class DriverService {
         Driver driver = optionalDriver.get();
         driver.setName(driverDetails.getName());
         driver.setPhone(driverDetails.getPhone());
+        driver.setLicensePlate(driverDetails.getLicensePlate());
+        driver.setVehicleInfo(driverDetails.getVehicleInfo());
         driver.setStatus(driverDetails.getStatus());
         driver.setCompanyId(driverDetails.getCompanyId());
 

@@ -66,7 +66,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/api/v1/users/list").hasAuthority("ADMIN")
                 .antMatchers("/api/v1/tour-templates/**").hasAuthority("ADMIN")
                 .antMatchers("/api/v1/categories/**").hasAuthority("ADMIN")
-                .antMatchers("/api/v1/drivers/**").hasAuthority("ADMIN")
+                .antMatchers("/api/v1/drivers/list").hasAuthority("ADMIN")
+                .antMatchers("/api/v1/drivers/my-bookings").hasAuthority("DRIVER")
 
                 // Authenticated endpoints
                 .antMatchers("/api/v1/users/**").authenticated()

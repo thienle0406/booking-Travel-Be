@@ -1,14 +1,14 @@
 package com.mytour.booking.service;
 
 import com.mytour.booking.entity.Booking;
-import com.mytour.booking.entity.Driver;
 import com.mytour.booking.entity.TourDeparture;
 import com.mytour.booking.entity.TourTemplate;
+import com.mytour.booking.entity.User;
 import com.mytour.booking.model.request.BookingCreateRequest;
 import com.mytour.booking.repository.BookingRepository;
-import com.mytour.booking.repository.DriverRepository;
 import com.mytour.booking.repository.TourDepartureRepository;
 import com.mytour.booking.repository.TourTemplateRepository;
+import com.mytour.booking.repository.UserRepository;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,13 +26,12 @@ public class BookingService {
     @Autowired private BookingRepository bookingRepository;
     @Autowired private TourDepartureRepository departureRepository;
     @Autowired private TourTemplateRepository templateRepository;
-    @Autowired private DriverRepository driverRepository;
+    @Autowired private UserRepository userRepository;
     @Autowired private NotificationService notificationService;
     @Autowired private EmailService emailService;
 
     private static final DateTimeFormatter VN_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    // Helper: lay ten tour tu departure
     private String getTourName(Booking booking) {
         try {
             TourDeparture dep = departureRepository.findById(booking.getTourDepartureId()).orElse(null);
@@ -44,7 +43,6 @@ public class BookingService {
         return "Tour #" + booking.getTourDepartureId();
     }
 
-    // Helper: lay ngay khoi hanh
     private String getStartDate(Booking booking) {
         try {
             TourDeparture dep = departureRepository.findById(booking.getTourDepartureId()).orElse(null);
@@ -53,9 +51,6 @@ public class BookingService {
         return "";
     }
 
-    // =========================================================
-    // TAO BOOKING MOI (User dat tour)
-    // =========================================================
     @Transactional
     public Booking createBooking(Long userId, BookingCreateRequest request) {
         Optional<TourDeparture> departureOpt = departureRepository.findById(request.getTourDepartureId());
@@ -77,11 +72,9 @@ public class BookingService {
 
         Booking saved = bookingRepository.save(booking);
 
-        // --- THONG BAO + EMAIL ---
         String tourName = getTourName(saved);
         String bookingId = String.valueOf(saved.getId());
 
-        // WebSocket -> Admin
         notificationService.notifyAdmins(
                 "NEW_BOOKING",
                 "Booking moi #" + bookingId,
@@ -89,7 +82,6 @@ public class BookingService {
                 bookingId
         );
 
-        // Email -> Admin (gui ngam, khong block)
         emailService.sendNewBookingToAdmin(
                 "admin@mytour.vn",
                 saved.getCustomerName(),
@@ -102,9 +94,6 @@ public class BookingService {
         return saved;
     }
 
-    // =========================================================
-    // CAP NHAT TRANG THAI BOOKING
-    // =========================================================
     @Transactional
     public Booking updateBookingStatus(Long bookingId, String status) {
         Booking booking = bookingRepository.findById(bookingId)
@@ -118,7 +107,7 @@ public class BookingService {
         String startDate = getStartDate(booking);
         String bkId = String.valueOf(booking.getId());
 
-        // --- Logic cap nhat so cho (bookedSlots) ---
+        // Logic cap nhat so cho (bookedSlots)
         departureOpt.ifPresent(departure -> {
             if ("Confirmed".equals(status) && !"Confirmed".equals(oldStatus)
                     && !"Assigned".equals(oldStatus) && !"InProgress".equals(oldStatus)) {
@@ -133,26 +122,26 @@ public class BookingService {
             }
         });
 
-        // --- Logic tu dong cap nhat trang thai tai xe ---
+        // Logic cap nhat trang thai tai xe (driverId = User.id of driver)
         String driverId = booking.getDriverId();
         if (driverId != null && !driverId.isEmpty()) {
-            driverRepository.findById(driverId).ifPresent(driver -> {
-                if ("Assigned".equals(status) || "InProgress".equals(status)) {
-                    driver.setStatus("busy");
-                    driverRepository.save(driver);
-                }
-                if ("Completed".equals(status) || "Cancelled".equals(status)) {
-                    driver.setStatus("available");
-                    driverRepository.save(driver);
-                }
-            });
+            try {
+                userRepository.findById(Long.parseLong(driverId)).ifPresent(driver -> {
+                    if ("Assigned".equals(status) || "InProgress".equals(status)) {
+                        driver.setDriverStatus("busy");
+                        userRepository.save(driver);
+                    }
+                    if ("Completed".equals(status) || "Cancelled".equals(status)) {
+                        driver.setDriverStatus("available");
+                        userRepository.save(driver);
+                    }
+                });
+            } catch (NumberFormatException ignored) {}
         }
 
         Booking saved = bookingRepository.save(booking);
 
-        // --- THONG BAO + EMAIL theo trang thai ---
         if ("Confirmed".equals(status)) {
-            // WebSocket + Email -> User
             notificationService.notifyUser(
                     booking.getUserId(), "BOOKING_CONFIRMED",
                     "Booking da xac nhan!",
@@ -166,7 +155,6 @@ public class BookingService {
         }
 
         if ("Cancelled".equals(status)) {
-            // WebSocket + Email -> User
             String refund = "Lien he hotline 0338 739 493 de duoc ho tro hoan tien";
             notificationService.notifyUser(
                     booking.getUserId(), "BOOKING_CANCELLED",
@@ -192,9 +180,6 @@ public class BookingService {
         return saved;
     }
 
-    // =========================================================
-    // GAN TAI XE
-    // =========================================================
     @Transactional
     public Booking assignDriver(Long bookingId, String driverId) {
         Booking booking = bookingRepository.findById(bookingId)
@@ -203,43 +188,40 @@ public class BookingService {
         // Neu co tai xe cu, chuyen ve available
         String oldDriverId = booking.getDriverId();
         if (oldDriverId != null && !oldDriverId.isEmpty() && !oldDriverId.equals(driverId)) {
-            driverRepository.findById(oldDriverId).ifPresent(oldDriver -> {
-                oldDriver.setStatus("available");
-                driverRepository.save(oldDriver);
-            });
+            try {
+                userRepository.findById(Long.parseLong(oldDriverId)).ifPresent(oldDriver -> {
+                    oldDriver.setDriverStatus("available");
+                    userRepository.save(oldDriver);
+                });
+            } catch (NumberFormatException ignored) {}
         }
 
         booking.setDriverId(driverId);
 
         // Chuyen tai xe moi -> busy + thong bao
         if (driverId != null && !driverId.isEmpty()) {
-            driverRepository.findById(driverId).ifPresent(newDriver -> {
-                newDriver.setStatus("busy");
-                driverRepository.save(newDriver);
+            try {
+                userRepository.findById(Long.parseLong(driverId)).ifPresent(newDriver -> {
+                    newDriver.setDriverStatus("busy");
+                    userRepository.save(newDriver);
 
-                String tourName = getTourName(booking);
-                String startDate = getStartDate(booking);
-                String bkId = String.valueOf(booking.getId());
+                    String tourName = getTourName(booking);
+                    String startDate = getStartDate(booking);
+                    String bkId = String.valueOf(booking.getId());
 
-                // WebSocket -> Tai xe
-                notificationService.notifyDriver(
-                        driverId,
-                        "Ban duoc gan tour moi!",
-                        tourName + " - Khoi hanh " + startDate,
-                        bkId
-                );
-
-                // Email -> Tai xe (neu co email, hien tai Driver chua co field email)
-                // emailService.sendDriverAssigned(...)
-            });
+                    notificationService.notifyDriver(
+                            driverId,
+                            "Ban duoc gan tour moi!",
+                            tourName + " - Khoi hanh " + startDate,
+                            bkId
+                    );
+                });
+            } catch (NumberFormatException ignored) {}
         }
 
         return bookingRepository.save(booking);
     }
 
-    // =========================================================
-    // CAC HAM KHAC (giu nguyen)
-    // =========================================================
     public List<Booking> getConfirmedBookingsByMonth(String companyId, int year, int month) {
         List<Booking> allConfirmedBookings = bookingRepository.findByCompanyId(companyId).stream()
                 .filter(b -> "Confirmed".equals(b.getStatus()))

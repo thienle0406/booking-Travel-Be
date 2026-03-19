@@ -26,7 +26,6 @@ public class AuthController {
     // === API: POST /api/v1/auth/register (Khớp FE) ===
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest registerRequest) {
-        // [GHI CHÚ] FE gửi username, email, password, companyId.
         authService.registerUser(registerRequest);
         return ResponseEntity.ok("Đăng ký thành công!");
     }

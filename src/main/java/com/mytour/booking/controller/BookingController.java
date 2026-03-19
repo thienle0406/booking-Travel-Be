@@ -26,7 +26,7 @@ public class BookingController {
     @PostMapping
     public ResponseEntity<Booking> createBooking(@RequestBody BookingCreateRequest request, @AuthenticationPrincipal UserDetails userDetails) {
         // Lấy userId từ JWT (rất quan trọng)
-        Long userId = userDetailsService.getUserIdFromUserDetails(userDetails);
+        Long userId = userDetailsService.getIdFromUserDetails(userDetails);
 
         // GỌI HÀM ĐÃ ĐƯỢC CODE
         Booking newBooking = bookingService.createBooking(userId, request);
@@ -45,7 +45,7 @@ public class BookingController {
     // Khớp FE: apiService.bookings.getByUserId
     @PostMapping("/my-bookings")
     public ResponseEntity<List<Booking>> getMyBookings(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userDetailsService.getUserIdFromUserDetails(userDetails);
+        Long userId = userDetailsService.getIdFromUserDetails(userDetails);
         List<Booking> bookings = bookingService.findBookingsByUserId(userId);
         return ResponseEntity.ok(bookings);
     }

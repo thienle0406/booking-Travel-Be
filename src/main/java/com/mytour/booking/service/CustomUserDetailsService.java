@@ -23,24 +23,24 @@ public class CustomUserDetailsService implements UserDetailsService {
      * Nó tìm kiếm User trong DB và trả về đối tượng UserDetails.
      */
     @Override
-    public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
-        // 1. Tìm kiếm User trong Database bằng username
-        User user = userRepository.findByUsername(usernameOrEmail)
-                .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng với username hoặc email: " + usernameOrEmail));
+    public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
+        // 1. Tìm kiếm User trong Database bằng userId
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng với mã: " + userId));
 
-        // 2. Chuyển đổi Role (trong Entity) thành GrantedAuthority (của Spring Security)
+        // 2. Chuyển đổi Role thành GrantedAuthority
         GrantedAuthority authority = new SimpleGrantedAuthority(user.getRole().name());
 
-        // 3. Trả về đối tượng UserDetails (đối tượng Security nội bộ)
+        // 3. Trả về đối tượng UserDetails (dùng userId làm username cho Spring Security)
         return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
-                user.getPasswordHash(), // PHẢI LÀ PASSWORD ĐÃ MÃ HÓA
+                user.getUserId(),
+                user.getPasswordHash(),
                 Collections.singletonList(authority)
         );
     }
-    public Long getUserIdFromUserDetails(UserDetails userDetails) {
-        // Lấy User Entity dựa trên username (thông tin này đến từ JWT)
-        User user = userRepository.findByUsername(userDetails.getUsername())
+
+    public Long getIdFromUserDetails(UserDetails userDetails) {
+        User user = userRepository.findByUserId(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found from security context"));
         return user.getId();
     }
